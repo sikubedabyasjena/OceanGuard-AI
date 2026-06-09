@@ -2,109 +2,65 @@ import datetime as dt
 import re
 from dataclasses import dataclass
 
-import streamlit as st
-
-
-st.set_page_config(
-    page_title="OceanGuard AI",
-    page_icon="🌊",
-    layout="wide",
-)
-
-
 @dataclass
 class AgentResult:
     issue_type: str
     severity: str
     confidence: int
-    reasons: list[str]
-    actions: list[str]
+    reasons: list
+    actions: list
     authority_report: str
-    cleanup_plan: list[str]
-
+    cleanup_plan: list
 
 ISSUE_RULES = {
     "Possible Oil or Chemical Pollution": {
         "keywords": [
-            "oil",
-            "black liquid",
-            "chemical",
-            "toxic",
-            "fuel",
-            "diesel",
-            "petrol",
-            "rainbow layer",
-            "bad smell",
-            "strong smell",
+            "oil", "black liquid", "chemical", "toxic",
+            "fuel", "diesel", "petrol", "rainbow layer",
+            "bad smell", "strong smell"
         ],
         "severity": 85,
     },
     "Marine Life Distress": {
         "keywords": [
-            "dead fish",
-            "dead turtle",
-            "dead dolphin",
-            "dead whale",
-            "dead crab",
-            "floating fish",
-            "injured turtle",
-            "sick fish",
+            "dead fish", "dead turtle", "dead dolphin",
+            "dead whale", "dead crab", "floating fish",
+            "injured turtle", "sick fish"
         ],
         "severity": 82,
     },
     "Plastic Pollution": {
         "keywords": [
-            "plastic",
-            "bottle",
-            "trash",
-            "garbage",
-            "waste",
-            "bag",
-            "wrapper",
-            "foam",
-            "thermocol",
-            "microplastic",
+            "plastic", "bottle", "trash", "garbage",
+            "waste", "bag", "wrapper", "foam",
+            "thermocol", "microplastic"
         ],
         "severity": 55,
     },
     "Water Contamination": {
         "keywords": [
-            "dirty water",
-            "brown water",
-            "sewage",
-            "wastewater",
-            "foam",
-            "green water",
-            "algae",
-            "sludge",
-            "smell",
+            "dirty water", "brown water", "sewage",
+            "wastewater", "foam", "green water",
+            "algae", "sludge", "smell"
         ],
         "severity": 65,
     },
     "Possible Illegal Fishing Activity": {
         "keywords": [
-            "illegal fishing",
-            "trawler",
-            "net",
-            "blast fishing",
-            "poison fishing",
-            "night fishing",
+            "illegal fishing", "trawler", "net",
+            "blast fishing", "poison fishing",
+            "night fishing"
         ],
         "severity": 62,
     },
     "Coral or Habitat Damage": {
         "keywords": [
-            "coral",
-            "reef",
-            "anchor damage",
-            "broken coral",
-            "mangrove",
-            "seagrass",
+            "coral", "reef", "anchor damage",
+            "broken coral", "mangrove", "seagrass"
         ],
         "severity": 68,
     },
 }
-
 
 SEVERITY_LABELS = [
     (80, "Emergency"),
@@ -113,267 +69,183 @@ SEVERITY_LABELS = [
     (0, "Low"),
 ]
 
-
-def normalize(text: str) -> str:
+def normalize(text):
     return re.sub(r"\s+", " ", text.lower()).strip()
 
-
-def detect_issue(report: str) -> tuple[str, int, list[str]]:
+def detect_issue(report):
     clean = normalize(report)
     matches = []
 
     for issue, rule in ISSUE_RULES.items():
-        found = [keyword for keyword in rule["keywords"] if keyword in clean]
+        found = [k for k in rule["keywords"] if k in clean]
         if found:
             score = rule["severity"] + min(len(found) * 4, 12)
             matches.append((issue, min(score, 100), found))
 
     if not matches:
-        return "General Ocean Safety Concern", 25, [
-            "The report does not contain strong pollution keywords, but it still describes an ocean-related concern."
-        ]
+        return (
+            "General Ocean Safety Concern",
+            25,
+            ["No strong pollution keywords detected."]
+        )
 
-    matches.sort(key=lambda item: item[1], reverse=True)
+    matches.sort(key=lambda x: x[1], reverse=True)
+
     issue, score, found = matches[0]
+
     reasons = [
-        f"Detected terms: {', '.join(found[:5])}.",
-        "The agent selected the highest-risk matching ocean issue.",
+        f"Detected terms: {', '.join(found[:5])}",
+        "Highest-risk issue selected."
     ]
 
     if len(matches) > 1:
-        related = ", ".join(item[0] for item in matches[1:3])
-        reasons.append(f"Related concerns also found: {related}.")
+        reasons.append(
+            "Related concerns: " +
+            ", ".join(m[0] for m in matches[1:3])
+        )
 
     return issue, score, reasons
 
-
-def severity_from_score(score: int) -> str:
+def severity_from_score(score):
     for threshold, label in SEVERITY_LABELS:
         if score >= threshold:
             return label
     return "Low"
 
-
-def action_plan(severity: str, issue_type: str) -> list[str]:
+def action_plan(severity):
     common = [
-        "Record the exact location, time, and visible evidence.",
-        "Take photos or videos only if it is safe.",
+        "Record exact location and time.",
+        "Take photos if safe."
     ]
 
     if severity == "Emergency":
         return [
-            "Keep people away from the affected water or shoreline.",
-            "Do not touch dead animals, oily material, chemicals, or unknown waste.",
-            "Contact local marine police, coast guard, pollution control board, or municipal authority immediately.",
-            "Ask nearby shops, lifeguards, or beach workers to help warn visitors.",
-            *common,
+            "Keep people away from the area.",
+            "Avoid touching chemicals or dead animals.",
+            "Contact authorities immediately.",
+            *common
         ]
 
     if severity == "High":
         return [
-            "Avoid direct contact with the water or affected material.",
-            "Inform local environmental authorities or beach management as soon as possible.",
-            "Mark the area mentally or with safe visible landmarks for responders.",
-            *common,
+            "Avoid direct contact.",
+            "Notify local authorities.",
+            *common
         ]
 
     if severity == "Medium":
         return [
-            "Inform local cleanup volunteers or beach management.",
-            "Use gloves, bags, and basic safety equipment if cleanup is attempted.",
-            "Separate plastic, glass, metal, and hazardous-looking items.",
-            *common,
+            "Inform cleanup volunteers.",
+            "Use gloves and safety gear.",
+            *common
         ]
 
     return [
-        "Monitor whether the issue increases or spreads.",
-        "Share awareness with nearby visitors.",
-        *common,
+        "Monitor the situation.",
+        *common
     ]
 
+def cleanup_plan(issue_type, severity):
 
-def cleanup_plan(issue_type: str, severity: str) -> list[str]:
     if "Oil" in issue_type or "Chemical" in issue_type:
         return [
-            "Do not organize public cleanup without trained responders.",
-            "Create a safe boundary around the affected area.",
-            "Request containment material and professional inspection.",
+            "Do not conduct public cleanup.",
+            "Create a safety boundary.",
+            "Request professional responders."
         ]
 
     if "Plastic" in issue_type:
         return [
-            "Create teams for collection, sorting, and documentation.",
-            "Use gloves, sacks, tongs, and closed footwear.",
-            "Weigh or count collected waste for impact reporting.",
+            "Collect and sort waste.",
+            "Use gloves and sacks.",
+            "Document collected waste."
         ]
 
     if "Marine Life" in issue_type:
         return [
-            "Do not move dead or injured marine animals without permission.",
-            "Share photos and location with wildlife or fisheries officials.",
-            "Watch for more affected animals nearby.",
-        ]
-
-    if severity in {"Emergency", "High"}:
-        return [
-            "Focus first on safety and reporting.",
-            "Wait for trained responders before cleanup.",
-            "Document spread, smell, color, and visible sources.",
+            "Do not move animals.",
+            "Notify wildlife officials.",
+            "Monitor nearby areas."
         ]
 
     return [
-        "Organize a small local inspection.",
-        "Document the issue before and after any cleanup.",
-        "Escalate if the condition gets worse.",
+        "Document issue.",
+        "Escalate if conditions worsen."
     ]
 
+def build_report(location, report, issue_type, severity, score):
 
-def build_report(location: str, report: str, issue_type: str, severity: str, score: int) -> str:
     now = dt.datetime.now().strftime("%d %b %Y, %I:%M %p")
-    safe_location = location.strip() or "Not provided"
-    return f"""OceanGuard AI Authority Report
+
+    return f"""
+OceanGuard AI Authority Report
 
 Generated: {now}
-Location: {safe_location}
+Location: {location}
 Detected Issue: {issue_type}
 Severity: {severity}
 Risk Score: {score}/100
 
 Citizen Observation:
-{report.strip()}
+{report}
 
 Recommended Response:
-Inspect the location, verify the source of the issue, protect public safety, and arrange cleanup or containment based on the severity level.
+Inspect the area and take action according to severity.
 """
 
+def run_agent(location, report):
 
-def run_agent(location: str, report: str) -> AgentResult:
     issue_type, score, reasons = detect_issue(report)
     severity = severity_from_score(score)
     confidence = min(95, max(45, score + 8))
-    actions = action_plan(severity, issue_type)
-    cleanup = cleanup_plan(issue_type, severity)
-    authority_report = build_report(location, report, issue_type, severity, score)
 
     return AgentResult(
         issue_type=issue_type,
         severity=severity,
         confidence=confidence,
         reasons=reasons,
-        actions=actions,
-        authority_report=authority_report,
-        cleanup_plan=cleanup,
-    )
-
-
-st.markdown(
-    """
-    <style>
-    .main { background: #f7faf9; }
-    .stButton > button {
-        background: #0f766e;
-        color: white;
-        border: 0;
-        border-radius: 8px;
-        padding: 0.65rem 1rem;
-        font-weight: 700;
-    }
-    .metric-card {
-        border: 1px solid #d9e7e4;
-        border-radius: 8px;
-        padding: 1rem;
-        background: white;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-st.title("OceanGuard AI")
-st.caption("An AI agent for ocean pollution reports, risk analysis, and response planning.")
-
-left, right = st.columns([1.05, 0.95], gap="large")
-
-with left:
-    st.subheader("Citizen Ocean Report")
-    location = st.text_input("Location", placeholder="Example: Puri Beach, Odisha")
-    report = st.text_area(
-        "What did you observe?",
-        height=190,
-        placeholder="Example: I saw black oily liquid near the shore, dead fish, and a strong chemical smell.",
-    )
-    analyze = st.button("Analyze with OceanGuard AI", use_container_width=True)
-
-    st.markdown("#### Try a demo report")
-    demo = st.selectbox(
-        "Select sample",
-        [
-            "Choose a sample",
-            "Plastic waste scattered near the beach with bottles and food wrappers.",
-            "Black oily liquid floating on water, strong smell, and dead fish near shore.",
-            "A fishing trawler is using a large net very close to the coast at night.",
-            "Brown dirty water and foam are entering the sea from a drain.",
-        ],
-    )
-    if demo != "Choose a sample":
-        st.info(demo)
-
-with right:
-    st.subheader("Agent Workflow")
-    st.write("1. Understand report")
-    st.write("2. Detect ocean issue")
-    st.write("3. Score risk")
-    st.write("4. Recommend action")
-    st.write("5. Generate authority report")
-
-    st.subheader("Hackathon Pitch")
-    st.write(
-        "OceanGuard AI turns citizen beach observations into structured pollution alerts, safety guidance, and response-ready reports."
-    )
-
-
-input_report = report.strip()
-if not input_report and demo != "Choose a sample":
-    input_report = demo
-
-if analyze or (demo != "Choose a sample" and not report.strip()):
-    if not input_report:
-        st.warning("Please enter an ocean or beach observation.")
-    else:
-        result = run_agent(location, input_report)
-
-        st.divider()
-        st.subheader("AI Agent Result")
-
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Detected Issue", result.issue_type)
-        c2.metric("Severity", result.severity)
-        c3.metric("Confidence", f"{result.confidence}%")
-
-        tab1, tab2, tab3, tab4 = st.tabs(
-            ["Reasoning", "Actions", "Cleanup Plan", "Authority Report"]
+        actions=action_plan(severity),
+        authority_report=build_report(
+            location,
+            report,
+            issue_type,
+            severity,
+            score
+        ),
+        cleanup_plan=cleanup_plan(
+            issue_type,
+            severity
         )
+    )
 
-        with tab1:
-            for reason in result.reasons:
-                st.write(f"- {reason}")
+# -----------------------
+# TEST
+# -----------------------
 
-        with tab2:
-            for action in result.actions:
-                st.write(f"- {action}")
+location = "Puri Beach, Odisha"
 
-        with tab3:
-            for step in result.cleanup_plan:
-                st.write(f"- {step}")
+report = """
+Black oily liquid floating on water,
+strong smell, and dead fish near shore.
+"""
 
-        with tab4:
-            st.code(result.authority_report)
-            st.download_button(
-                "Download Report",
-                data=result.authority_report,
-                file_name="oceanguard_ai_report.txt",
-                mime="text/plain",
-                use_container_width=True,
-            )
+result = run_agent(location, report)
 
+print("Issue:", result.issue_type)
+print("Severity:", result.severity)
+print("Confidence:", result.confidence)
+
+print("\nReasons:")
+for r in result.reasons:
+    print("-", r)
+
+print("\nActions:")
+for a in result.actions:
+    print("-", a)
+
+print("\nCleanup Plan:")
+for c in result.cleanup_plan:
+    print("-", c)
+
+print("\nAuthority Report:")
+print(result.authority_report)
